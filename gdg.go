@@ -2,13 +2,13 @@
 package gdg
 
 import (
+    "bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
+    "io"
 	"math"
-	"os"
-	"path"
 	"runtime"
 	"sync"
 
@@ -22,9 +22,14 @@ const (
 	PNG  ImageFormat = "png"
 )
 
+type Saver interface {
+    SaveFile(path string, r io.Reader) error
+}
+
 // Option represents general DZI options.
 type Option struct {
 	DirPath       string
+    Saver         Saver
 	Format        ImageFormat
 	Overlap       uint
 	TileSize      uint
@@ -73,25 +78,30 @@ func ComputeTileRect(opt *Option, col, row, maxCol, maxRow uint) (rect image.Rec
 }
 
 // SaveTile saves tile to given path based on level, column and row.
-func SaveTile(dirPath string, level, col, row uint, format ImageFormat, m *image.NRGBA, wg *sync.WaitGroup) error {
+func SaveTile(dirPath string, saver Saver, level, col, row uint, format ImageFormat, m *image.NRGBA, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	defer runtime.GC()
+    var err error
+
 	imgPath := fmt.Sprintf("%s/%d/%d_%d.%s", dirPath, level, col, row, format)
-	// fmt.Println(imgPath)
-	os.MkdirAll(path.Dir(imgPath), os.ModePerm)
-	fw, err := os.Create(imgPath)
-	if err != nil {
-		return err
-	}
-	defer fw.Close()
+    buffer := bytes.Buffer{}
 
 	switch format {
 	case JPEG:
-		err = jpeg.Encode(fw, m, &jpeg.Options{jpeg.DefaultQuality})
+		err = jpeg.Encode(&buffer, m, &jpeg.Options{jpeg.DefaultQuality})
 	case PNG:
-		err = png.Encode(fw, m)
+		err = png.Encode(&buffer, m)
 	}
-	wg.Done()
-	runtime.GC()
-	return err
+    if err != nil {
+        return err
+    }
+
+    err = saver.SaveFile(imgPath, &buffer)
+    if err != nil {
+        return err
+    }
+
+	return nil
 }
 
 // Generate generates DZI files of given image and option.
@@ -107,7 +117,7 @@ func Generate(m *image.NRGBA, opt *Option) error {
 		wg.Add(int(cols * rows))
 		for col = 0; col < cols; col++ {
 			for row = 0; row < rows; row++ {
-				go SaveTile(opt.DirPath, level, col, row, opt.Format,
+				go SaveTile(opt.DirPath, opt.Saver, level, col, row, opt.Format,
 					imaging.Crop(tm, ComputeTileRect(opt, col, row, cols, rows)), wg)
 				// if err := SaveTile(opt.DirPath, level, col, row, opt.Format,
 				// 	imaging.Crop(tm, ComputeTileRect(opt, col, row, cols, rows))); err != nil {

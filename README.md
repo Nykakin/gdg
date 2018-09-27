@@ -1,7 +1,5 @@
-Go DZI Generator
-================
-
-Go DZI Generator is a pure Go implementation of `vips dzsave`.
+Modification of https://github.com/genomelightning/gdg, since I wanted to use generic saving interface instead of storing
+everything on the hard drive.
 
 ## References
 

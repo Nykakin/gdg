@@ -2,12 +2,12 @@
 package gdg
 
 import (
-    "bytes"
+	"bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
-    "io"
+	"io"
 	"math"
 	"runtime"
 	"sync"
@@ -23,13 +23,13 @@ const (
 )
 
 type Saver interface {
-    SaveFile(path string, r io.Reader) error
+	SaveFile(path string, r io.Reader) error
 }
 
 // Option represents general DZI options.
 type Option struct {
 	DirPath       string
-    Saver         Saver
+	Saver         Saver
 	Format        ImageFormat
 	Overlap       uint
 	TileSize      uint
@@ -81,10 +81,10 @@ func ComputeTileRect(opt *Option, col, row, maxCol, maxRow uint) (rect image.Rec
 func SaveTile(dirPath string, saver Saver, level, col, row uint, format ImageFormat, m *image.NRGBA, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	defer runtime.GC()
-    var err error
+	var err error
 
 	imgPath := fmt.Sprintf("%s/%d/%d_%d.%s", dirPath, level, col, row, format)
-    buffer := bytes.Buffer{}
+	buffer := bytes.Buffer{}
 
 	switch format {
 	case JPEG:
@@ -92,14 +92,14 @@ func SaveTile(dirPath string, saver Saver, level, col, row uint, format ImageFor
 	case PNG:
 		err = png.Encode(&buffer, m)
 	}
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    err = saver.SaveFile(imgPath, &buffer)
-    if err != nil {
-        return err
-    }
+	err = saver.SaveFile(imgPath, &buffer)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
